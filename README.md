@@ -6,6 +6,12 @@ root cause analysis, severity classification, and a ready-to-paste defect
 draft — so a tester can go from "here's a log" to "here's the defect" in
 one step.
 
+It supports two interchangeable LLM providers, switched with one setting:
+- **Ollama** (default) — runs entirely on your own machine. No API key,
+  no rate limits, no cost, no internet needed once the model is downloaded.
+- **Groq** — cloud API. Faster to set up, but subject to Groq's rate limits
+  and requires an API key.
+
 This is the same agent from earlier in this project, rebuilt as a proper
 Python package (LangGraph `agent.py` / `nodes.py` / `state.py` / `tools.py`
 / `config.py`) instead of a single JS/HTML file, and served through
@@ -50,6 +56,25 @@ API call, or a retry node if the model's JSON fails to parse.
    causes ranked by confidence, classification, and a defect draft you can
    copy straight into Jira/ADO.
 
+## 0. Set up Ollama (default provider — skip this if using Groq instead)
+
+1. Download and install Ollama: **https://ollama.com/download** (Windows, Mac, Linux).
+2. Open a terminal and pull a model (one-time download, a few GB):
+   ```bash
+   ollama pull llama3.1:8b
+   ```
+3. That's it — Ollama runs a local server automatically in the background
+   after install (`http://localhost:11434`). No further setup needed.
+
+**Hardware note:** `llama3.1:8b` wants roughly 8GB+ of RAM. If your machine
+struggles, try a smaller model instead, e.g. `ollama pull llama3.2:3b`, and
+set `OLLAMA_MODEL=llama3.2:3b` in your `.env`.
+
+**Limitation:** Ollama only works for **local** use — Streamlit Community
+Cloud's servers don't have Ollama installed, so a Cloud-deployed app must
+use `LLM_PROVIDER=groq` instead (see section 2 below). Ollama is for running
+the app on your own laptop only.
+
 ## 1. Run it locally
 
 Requires Python 3.10+.
@@ -61,14 +86,19 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# open .env and paste your Groq API key (https://console.groq.com/keys)
+# .env already defaults to LLM_PROVIDER=ollama — no key needed if you did step 0.
+# To use Groq instead, set LLM_PROVIDER=groq and paste in your GROQ_API_KEY.
 
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
 This opens `http://localhost:8501` in your browser — that's the app running locally.
 
 ## 2. Get a public URL (Streamlit Community Cloud — free, easiest)
+
+**Important:** Ollama can't run on Streamlit Community Cloud (their servers
+don't have it installed) — a deployed app must use `LLM_PROVIDER=groq`.
+Ollama is for local use only; Groq is what makes this work as a public URL.
 
 This is the simplest way to get a URL you can access from anywhere,
 purpose-built for Streamlit apps:
@@ -80,6 +110,7 @@ purpose-built for Streamlit apps:
    in the contents of `.streamlit/secrets.toml.example`, filled in with your
    real values:
    ```toml
+   LLM_PROVIDER = "groq"
    GROQ_API_KEY = "gsk_..."
    APP_PASSWORD = "choose-a-shared-password"
    ```
@@ -92,9 +123,12 @@ No server management, no Dockerfile, no billing setup beyond your Groq key.
 If you'd rather not use Streamlit Community Cloud, this app also runs fine
 on **Render**, **Railway**, or a VPS — same idea as any Python web app:
 `pip install -r requirements.txt` then `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`.
-Set `GROQ_API_KEY` and `APP_PASSWORD` as environment variables on whichever
-host you pick (they're read via `.env`/`os.getenv` as a fallback if
-`st.secrets` isn't available).
+Set `LLM_PROVIDER=groq`, `GROQ_API_KEY`, and `APP_PASSWORD` as environment
+variables on whichever host you pick (they're read via `.env`/`os.getenv` as
+a fallback if `st.secrets` isn't available). If your host is actually a VPS
+you control (not a shared platform like Render/Railway), you could instead
+install Ollama on that VPS itself and keep `LLM_PROVIDER=ollama` — just
+know you're then responsible for that server's uptime and resources.
 
 ## 3. Access control
 

@@ -7,13 +7,13 @@ the defect ticket in a different tone).
 """
 
 from .state import ECallState
-from .tools import call_groq_analysis, AnalysisError
+from .tools import call_llm_analysis, AnalysisError
 
 
 def analyze_log_node(state: ECallState) -> ECallState:
     """Run the log through the model and store the structured result (or error) in state."""
     try:
-        result = call_groq_analysis(state["log_content"])
+        result = call_llm_analysis(state["log_content"])
         return {"result": result, "error": None}
     except AnalysisError as e:
         return {"result": None, "error": str(e)}
