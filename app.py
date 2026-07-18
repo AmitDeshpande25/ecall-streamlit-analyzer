@@ -73,7 +73,7 @@ if APP_PASSWORD:
 # Header
 # ---------------------------------------------------------------------------
 st.markdown("## ⚡ eCall Log Analyst")
-st.caption("Telematics diagnostic agent · EN 16072 / MSD / TS 26.267 · powered by Groq")
+st.caption("Telematics diagnostic agent · EN 16072 / MSD / TS 26.267 · powered by OpenRouter")
 
 # ---------------------------------------------------------------------------
 # Upload

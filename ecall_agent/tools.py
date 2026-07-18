@@ -1,8 +1,8 @@
 """
 tools.py
 External-facing calls the agent uses. Right now there's one tool: calling
-the Groq API to analyze a log. Kept separate from nodes.py so the "how do
-I talk to the model" logic is isolated from "what does the graph do".
+the OpenRouter API to analyze a log. Kept separate from nodes.py so the
+"how do I talk to the model" logic is isolated from "what does the graph do".
 """
 
 import json
@@ -12,9 +12,9 @@ from .config import (
     LLM_PROVIDER,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
-    GROQ_API_KEY,
-    GROQ_MODEL,
-    GROQ_API_URL,
+    OPENROUTER_API_KEY,
+    OPENROUTER_MODEL,
+    OPENROUTER_API_URL,
     SYSTEM_PROMPT,
     MAX_LOG_CHARS,
     MAX_OUTPUT_TOKENS,
@@ -88,14 +88,14 @@ def call_ollama_analysis(log_content: str) -> dict:
     return _parse_json_content(text)
 
 
-def call_groq_analysis(log_content: str) -> dict:
+def call_openrouter_analysis(log_content: str) -> dict:
     """
-    Send log content to Groq's chat completions API and return the parsed
-    structured JSON result. Raises AnalysisError on any failure.
+    Send log content to OpenRouter's chat completions API and return the
+    parsed structured JSON result. Raises AnalysisError on any failure.
     """
-    if not GROQ_API_KEY:
+    if not OPENROUTER_API_KEY:
         raise AnalysisError(
-            "GROQ_API_KEY is not set. Add it to your .env file (local) "
+            "OPENROUTER_API_KEY is not set. Add it to your .env file (local) "
             "or Streamlit secrets (deployed)."
         )
     if not log_content or not log_content.strip():
@@ -105,15 +105,15 @@ def call_groq_analysis(log_content: str) -> dict:
 
     try:
         response = requests.post(
-            GROQ_API_URL,
+            OPENROUTER_API_URL,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             },
             json={
-                "model": GROQ_MODEL,
+                "model": OPENROUTER_MODEL,
                 "temperature": 0.2,
-                "max_completion_tokens": MAX_OUTPUT_TOKENS,
+                "max_tokens": MAX_OUTPUT_TOKENS,
                 "response_format": {"type": "json_object"},
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
@@ -123,20 +123,20 @@ def call_groq_analysis(log_content: str) -> dict:
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
     except requests.RequestException as e:
-        raise AnalysisError(f"Could not reach Groq API: {e}") from e
+        raise AnalysisError(f"Could not reach OpenRouter API: {e}") from e
 
     if not response.ok:
         try:
             detail = response.json().get("error", {}).get("message", response.text)
         except Exception:
             detail = response.text
-        raise AnalysisError(f"Groq API error ({response.status_code}): {detail}")
+        raise AnalysisError(f"OpenRouter API error ({response.status_code}): {detail}")
 
     data = response.json()
     try:
         text = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as e:
-        raise AnalysisError(f"Unexpected response shape from Groq API: {e}") from e
+        raise AnalysisError(f"Unexpected response shape from OpenRouter API: {e}") from e
 
     return _parse_json_content(text)
 
@@ -144,14 +144,14 @@ def call_groq_analysis(log_content: str) -> dict:
 def call_llm_analysis(log_content: str) -> dict:
     """
     Single entry point nodes.py calls — routes to whichever provider is
-    configured via LLM_PROVIDER ("ollama" or "groq"), so the rest of the
-    agent never needs to know which one is active.
+    configured via LLM_PROVIDER ("ollama" or "openrouter"), so the rest of
+    the agent never needs to know which one is active.
     """
     if LLM_PROVIDER == "ollama":
         return call_ollama_analysis(log_content)
-    elif LLM_PROVIDER == "groq":
-        return call_groq_analysis(log_content)
+    elif LLM_PROVIDER == "openrouter":
+        return call_openrouter_analysis(log_content)
     else:
         raise AnalysisError(
-            f"Unknown LLM_PROVIDER '{LLM_PROVIDER}'. Use 'ollama' or 'groq'."
+            f"Unknown LLM_PROVIDER '{LLM_PROVIDER}'. Use 'ollama' or 'openrouter'."
         )

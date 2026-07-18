@@ -34,18 +34,18 @@ def _get_setting(key: str, default: str = "") -> str:
 
 
 # --- LLM provider selection ---
-# "ollama" = run fully locally via Ollama (no API key, no rate limits, no cost)
-# "groq"   = use Groq's cloud API (needs GROQ_API_KEY, has free-tier rate limits)
+# "ollama"     = run fully locally via Ollama (no API key, no rate limits, no cost)
+# "openrouter" = use OpenRouter's cloud API (needs OPENROUTER_API_KEY, access to many models)
 LLM_PROVIDER = _get_setting("LLM_PROVIDER", "ollama").lower()
 
 # --- Ollama settings (used when LLM_PROVIDER == "ollama") ---
 OLLAMA_BASE_URL = _get_setting("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = _get_setting("OLLAMA_MODEL", "llama3.1:8b")
 
-# --- Groq API settings (used when LLM_PROVIDER == "groq") ---
-GROQ_API_KEY = _get_setting("GROQ_API_KEY", "")
-GROQ_MODEL = _get_setting("GROQ_MODEL", "openai/gpt-oss-120b")
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+# --- OpenRouter API settings (used when LLM_PROVIDER == "openrouter") ---
+OPENROUTER_API_KEY = _get_setting("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = _get_setting("OPENROUTER_MODEL", "openai/gpt-oss-120b")
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # --- Optional shared-password gate ---
 APP_PASSWORD = _get_setting("APP_PASSWORD", "")

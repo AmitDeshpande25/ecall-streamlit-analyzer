@@ -9,8 +9,9 @@ one step.
 It supports two interchangeable LLM providers, switched with one setting:
 - **Ollama** (default) — runs entirely on your own machine. No API key,
   no rate limits, no cost, no internet needed once the model is downloaded.
-- **Groq** — cloud API. Faster to set up, but subject to Groq's rate limits
-  and requires an API key.
+- **OpenRouter** — cloud API. Faster to set up, gives access to many models
+  through one key, and is what makes a shareable public URL possible (see
+  section 2).
 
 This is the same agent from earlier in this project, rebuilt as a proper
 Python package (LangGraph `agent.py` / `nodes.py` / `state.py` / `tools.py`
@@ -25,8 +26,8 @@ ecall-streamlit-analyzer/
 ├── ecall_agent/
 │   ├── __init__.py            Public API of the package (run_analysis, build_graph)
 │   ├── state.py                ECallState — the shared state passed through the graph
-│   ├── config.py                Settings: Groq API key/model, app password, the system prompt
-│   ├── tools.py                  The actual Groq API call + JSON parsing (the "tool" the agent uses)
+│   ├── config.py                Settings: OpenRouter API key/model, app password, the system prompt
+│   ├── tools.py                  The actual OpenRouter API call + JSON parsing (the "tool" the agent uses)
 │   ├── nodes.py                   One graph node: analyze_log_node, calls tools.py, fills state
 │   └── agent.py                    Builds the LangGraph graph: START -> analyze_log -> END
 ├── requirements.txt
@@ -47,8 +48,8 @@ API call, or a retry node if the model's JSON fails to parse.
 1. `app.py` reads the uploaded file as raw text (works for `.log`, `.txt`,
    `.csv`, `.json`, or any other text-based export).
 2. It calls `ecall_agent.agent.run_analysis(log_text)`.
-3. That runs the graph: `analyze_log_node` sends the log to Groq
-   (`tools.call_groq_analysis`) with a system prompt (`config.SYSTEM_PROMPT`)
+3. That runs the graph: `analyze_log_node` sends the log to OpenRouter
+   (`tools.call_openrouter_analysis`) with a system prompt (`config.SYSTEM_PROMPT`)
    that knows eCall's protocol stages (EN 16072 / MSD / TS 26.267) and
    forces a structured JSON response.
 4. The result lands back in `ECallState["result"]`, and `app.py` renders it
@@ -56,7 +57,7 @@ API call, or a retry node if the model's JSON fails to parse.
    causes ranked by confidence, classification, and a defect draft you can
    copy straight into Jira/ADO.
 
-## 0. Set up Ollama (default provider — skip this if using Groq instead)
+## 0. Set up Ollama (default provider — skip this if using OpenRouter instead)
 
 1. Download and install Ollama: **https://ollama.com/download** (Windows, Mac, Linux).
 2. Open a terminal and pull a model (one-time download, a few GB):
@@ -72,8 +73,8 @@ set `OLLAMA_MODEL=llama3.2:3b` in your `.env`.
 
 **Limitation:** Ollama only works for **local** use — Streamlit Community
 Cloud's servers don't have Ollama installed, so a Cloud-deployed app must
-use `LLM_PROVIDER=groq` instead (see section 2 below). Ollama is for running
-the app on your own laptop only.
+use `LLM_PROVIDER=openrouter` instead (see section 2 below). Ollama is for
+running the app on your own laptop only.
 
 ## 1. Run it locally
 
@@ -87,7 +88,7 @@ pip install -r requirements.txt
 
 cp .env.example .env
 # .env already defaults to LLM_PROVIDER=ollama — no key needed if you did step 0.
-# To use Groq instead, set LLM_PROVIDER=groq and paste in your GROQ_API_KEY.
+# To use OpenRouter instead, set LLM_PROVIDER=openrouter and paste in your OPENROUTER_API_KEY.
 
 python -m streamlit run app.py
 ```
@@ -97,38 +98,40 @@ This opens `http://localhost:8501` in your browser — that's the app running lo
 ## 2. Get a public URL (Streamlit Community Cloud — free, easiest)
 
 **Important:** Ollama can't run on Streamlit Community Cloud (their servers
-don't have it installed) — a deployed app must use `LLM_PROVIDER=groq`.
-Ollama is for local use only; Groq is what makes this work as a public URL.
+don't have it installed) — a deployed app must use `LLM_PROVIDER=openrouter`.
+Ollama is for local use only; OpenRouter is what makes this work as a public URL.
 
 This is the simplest way to get a URL you can access from anywhere,
 purpose-built for Streamlit apps:
 
-1. Push this folder to a GitHub repo (public or private).
-2. Go to **https://share.streamlit.io** and sign in with GitHub.
-3. Click **New app**, pick your repo/branch, and set the main file path to `app.py`.
-4. Before/after deploying, open **Settings → Secrets** on the app and paste
+1. Get an API key at **https://openrouter.ai/keys** (sign up, then create a key).
+2. Push this folder to a GitHub repo (public or private).
+3. Go to **https://share.streamlit.io** and sign in with GitHub.
+4. Click **New app**, pick your repo/branch, and set the main file path to `app.py`.
+5. Before/after deploying, open **Settings → Secrets** on the app and paste
    in the contents of `.streamlit/secrets.toml.example`, filled in with your
    real values:
    ```toml
-   LLM_PROVIDER = "groq"
-   GROQ_API_KEY = "gsk_..."
+   LLM_PROVIDER = "openrouter"
+   OPENROUTER_API_KEY = "sk-or-v1-..."
    APP_PASSWORD = "choose-a-shared-password"
    ```
-5. Deploy. You'll get a URL like `https://your-app-name.streamlit.app` —
+6. Deploy. You'll get a URL like `https://your-app-name.streamlit.app` —
    share that with your team.
 
-No server management, no Dockerfile, no billing setup beyond your Groq key.
+No server management, no Dockerfile, no billing setup beyond your OpenRouter key.
 
 ### Alternative hosts
 If you'd rather not use Streamlit Community Cloud, this app also runs fine
 on **Render**, **Railway**, or a VPS — same idea as any Python web app:
 `pip install -r requirements.txt` then `streamlit run app.py --server.port $PORT --server.address 0.0.0.0`.
-Set `LLM_PROVIDER=groq`, `GROQ_API_KEY`, and `APP_PASSWORD` as environment
-variables on whichever host you pick (they're read via `.env`/`os.getenv` as
-a fallback if `st.secrets` isn't available). If your host is actually a VPS
-you control (not a shared platform like Render/Railway), you could instead
-install Ollama on that VPS itself and keep `LLM_PROVIDER=ollama` — just
-know you're then responsible for that server's uptime and resources.
+Set `LLM_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `APP_PASSWORD` as
+environment variables on whichever host you pick (they're read via
+`.env`/`os.getenv` as a fallback if `st.secrets` isn't available). If your
+host is actually a VPS you control (not a shared platform like Render/Railway),
+you could instead install Ollama on that VPS itself and keep
+`LLM_PROVIDER=ollama` — just know you're then responsible for that server's
+uptime and resources.
 
 ## 3. Access control
 
@@ -146,8 +149,9 @@ Same idea as the earlier Node version, adapted to Streamlit:
 
 ## 4. Customizing
 
-- Change the model: set `GROQ_MODEL` (defaults to `openai/gpt-oss-120b`;
-  `openai/gpt-oss-20b` is faster/cheaper if you want to try it).
+- Change the model: set `OPENROUTER_MODEL` (defaults to `openai/gpt-oss-120b`;
+  `openai/gpt-oss-20b` is faster/cheaper if you want to try it). Browse
+  available models and pricing at **https://openrouter.ai/models**.
 - Tune the analysis behavior: edit `SYSTEM_PROMPT` in `ecall_agent/config.py`
   — e.g. add your specific DTC codes, your defect tool's exact field names,
   or a different regional eCall standard (ERA-GLONASS, etc.).
